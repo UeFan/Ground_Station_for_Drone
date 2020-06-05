@@ -1,0 +1,148 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<style type="text/css">
+body, html,#allmap {width: 100%;height: 100%;overflow: hidden;margin:0;font-family:"微软雅黑";}
+</style>
+<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=WiUtV0vfMqRuCVqducdBKyo2GO4dKeWV"></script>
+<title>设置驾车路线途经点</title>
+</head>
+<body>
+<div id="allmap"></div>
+</body>
+<input type="button" value="立即购买">
+</html>
+<script type="text/javascript">
+
+// 百度地图API功能
+var map = new BMap.Map("allmap");
+map.centerAndZoom(new BMap.Point(121.443532,31.24603), 13);
+map.enableScrollWheelZoom(true);
+
+function addMarker(point){
+	  var marker = new BMap.Marker(point);
+	  map.addOverlay(marker);
+	}
+function showPoly(pointList){
+
+        //循环显示点对象
+        for(c=0;c<pointList.length;c++){
+        var marker = new BMap.Marker(pointList[c]);
+        map.addOverlay(marker);
+        //将途经点按顺序添加到地图上
+        var label = new BMap.Label(c+1,{offset:new BMap.Size(20,-10)});
+        marker.setLabel(label);
+        }
+
+       var  group = Math.floor( pointList.length /11 ) ;
+       var mode = pointList.length %11 ;
+
+       var driving = new BMap.DrivingRoute( map, {onSearchComplete: function(results){
+              if (driving.getStatus() == BMAP_STATUS_SUCCESS){
+                     var plan = driving.getResults().getPlan(0);
+                     var  num = plan.getNumRoutes();
+                     // alert("plan.num ："+num);
+                     for(var j =0;j<num ;j++){
+                      var pts= plan.getRoute(j).getPath();    //通过驾车实例，获得一系列点的数组
+                      // alert(pts.length)
+                      // for(var k = 0; k < pts.length; k++){
+                      //   if(k%10 == 0)
+                      //     alert( pts[k].lng+","+ pts[k].lat);
+                      //   var pts_ = pts[k]
+                      //   addMarker(pts_);
+                      // }
+                      var polyline = new BMap.Polyline(pts);
+                      map.addOverlay(polyline);
+                     }
+              }
+        }});
+        for(var i =0;i<group;i++){
+           var waypoints = pointList.slice(i*11+1,(i+1)*11);
+           //注意这里的终点如果是11的倍数的时候，数组可是取不到最后一位的，所以要注意终点-1喔。感谢song141的提醒，怪我太粗心大意了~
+           driving.search(pointList[i*11], pointList[(i+1)*11-1],{waypoints:waypoints});//waypoints表示途经点
+        }
+        if( mode != 0){
+         var waypoints = pointList.slice(group*11,pointList.length-1);//多出的一段单独进行search
+         driving.search(pointList[group*11],pointList[pointList.length-1],{waypoints:waypoints});
+        }
+
+}
+
+// 定义按钮
+// 定义一个控件类,即function
+    function getRoute(){
+      // 默认停靠位置和偏移量
+      this.defaultAnchor = BMAP_ANCHOR_BOTTOM_RIGHT;
+      this.defaultOffset = new BMap.Size(10, 10); // 距离左上角位置
+    }
+
+    // 通过JavaScript的prototype属性继承于BMap.Control
+    getRoute.prototype = new BMap.Control();
+
+    // 自定义控件必须实现自己的initialize方法,并且将控件的DOM元素返回
+    // 在本方法中创建个div元素作为控件的容器,并将其添加到地图容器中
+    getRoute.prototype.initialize = function(map){
+      // 创建一个DOM元素
+      var div = document.createElement("div");
+      // 添加文字说明
+      div.appendChild(document.createTextNode("规划路径"));
+      // 设置样式
+      div.style.cursor = "pointer";
+      div.style.border = "4px solid gray";
+      div.style.backgroundColor = "white";
+      // 绑定事件,点击一次放大两级
+      div.onclick = function(e){
+        // map.setZoom(map.getZoom() + 2); // 动作
+				arrayList.push(p1);arrayList.push(p2);arrayList.push(p3);
+				//显示轨迹
+				showPoly(arrayList);
+      }
+      // 添加DOM元素到地图中
+      map.getContainer().appendChild(div);
+      // 将DOM元素返回
+      return div;
+    }
+    // 创建控件
+    var myRouteButton = new getRoute();
+    // 添加到地图当中
+    map.addControl(myRouteButton);
+
+
+//将28个百度坐标点放入数据中
+var p1 = new BMap.Point(121.443532,31.24603);
+var p2 = new BMap.Point(121.481477,31.240103);
+var p3 = new BMap.Point(121.493262,31.237015);
+var p4 = new BMap.Point(121.494987,31.230099);
+var p5 = new BMap.Point(121.489382,31.225034);
+var p6 = new BMap.Point(121.512953,31.219846);
+var p7 = new BMap.Point(121.510222,31.228122);
+var p8 = new BMap.Point(121.520715,31.232198);
+var p9 = new BMap.Point(121.515828,31.239485);
+var p10 = new BMap.Point(121.498724,31.238868);
+var p11 = new BMap.Point(121.496568,31.227505);
+var p12 = new BMap.Point(121.479177,31.244178);
+var p13 = new BMap.Point(121.496712,31.249365);
+var p14 = new BMap.Point(121.503323,31.260972);
+var p15 = new BMap.Point(121.512953,31.276158);
+var p16 = new BMap.Point(121.481764,31.26838);
+var p17 = new BMap.Point(121.464804,31.285293);
+var p18 = new BMap.Point(121.468685,31.251587);
+var p19 = new BMap.Point(121.47041,31.245289);
+var p20 = new BMap.Point(121.489094,31.19106);
+var p21 = new BMap.Point(121.514534,31.207987);
+var p22 = new BMap.Point(121.525314,31.178208);
+var p23 = new BMap.Point(121.533363,31.159422);
+var p24 = new BMap.Point(121.533363,31.159422);
+var p25 = new BMap.Point(121.545005,31.203169);
+var p26 = new BMap.Point(121.562252,31.186364);
+var p27 = new BMap.Point(121.569295,31.170422);
+var p28 = new BMap.Point(121.575907,31.15559);
+
+var arrayList = [] ;
+// arrayList.push(p1);arrayList.push(p2);arrayList.push(p3);
+//
+// //显示轨迹
+// showPoly(arrayList);
+
+</script>

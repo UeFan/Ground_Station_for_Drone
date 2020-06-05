@@ -1,0 +1,303 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<script src="./qwebchannel.js"></script>
+<style type="text/css">
+body, html,#map {width: 100%;height: 100%;overflow: hidden;margin:0;}
+</style>
+<script type="text/javascript" src="http://api.map.baidu.com/getscript?v=2.0&ak=WiUtV0vfMqRuCVqducdBKyo2GO4dKeWV"></script>
+</head
+<body>
+    <div id="map"></div>
+</body>
+</html>
+<script type="text/javascript">
+    var map = new BMap.Map("map",{minZoom:5,maxZoom:18,enableMapClick:false});
+    var point = new BMap.Point(116.98,36.6169);
+    var arrayList = [] ;
+    var rotList = [];
+    var myPoint = new BMap.Point(0, 0);
+    var routePoints = [];
+    var currentRoutePointNum = -1;
+
+    map.centerAndZoom(point,12);
+
+    map.enableDragging(true);
+    map.enableScrollWheelZoom(true);
+    map.disableDoubleClickZoom(true);
+    var ctrlNav = new BMap.NavigationControl({anchor:BMAP_ANCHOR_TOP_LEFT,type:BMAP_NAVIGATION_CONTROL_LARGE});
+    map.addControl(ctrlNav);
+    map.addControl(new BMap.MapTypeControl());          //添加地图类型控件
+  	//设置marker图标为水滴
+  	var vectorMarker = new BMap.Marker(new BMap.Point(point.lng,point.lat-0.03), {
+  	  // 指定Marker的icon属性为Symbol
+      // 初始化方向向下的开放式箭头
+      icon: new BMap.Symbol(BMap_Symbol_SHAPE_BACKWARD_CLOSED_ARROW, {
+        scale: 2,
+        strokeWeight: 1,
+        rotation: 180,
+        fillColor: 'gold',
+        fillOpacity: 0.8
+      })
+  	});
+
+  	//设置marker图标为飞机
+  	var vectorPlane = new BMap.Marker(new BMap.Point(point.lng+0.04,point.lat-0.03), {
+  	  // 初始化小飞机Symbol
+      icon: new BMap.Symbol(BMap_Symbol_SHAPE_PLANE, {
+        scale: 2,
+        fillColor: 'lightgreen',
+        fillOpacity: 0.8,
+        rotation: 0
+    })
+  	});
+
+
+  	map.addOverlay(vectorMarker);
+  	vectorMarker.hide();
+  	map.addOverlay(vectorPlane);
+  	//单击获取点击的经纬度
+  	map.addEventListener("click",function(e){
+  		window.bridge.jsSendMsg(e.point.lng + "," + e.point.lat);
+  		vectorMarker.setPosition(e.point);
+  		vectorMarker.show();
+  	});
+
+  	new QWebChannel(qt.webChannelTransport, function(channel) {
+          	window.bridge = channel.objects.bridge;
+
+  		window.bridge.GetLightData(function(returnValue){
+  		 lastMarker = initMarker(returnValue);
+  		});
+
+      window.bridge.sigUpdateLight.connect(function() {
+  			vectorMarker.hide();
+  			window.bridge.GetLightData(function(returnValue){
+  			     initMarker(returnValue);
+  			});
+      });
+  		window.bridge.removePoints.connect(function() {
+  			map.clearOverlays();
+  			map.addOverlay(vectorMarker);
+  			vectorMarker.hide();
+  			map.addOverlay(vectorPlane);
+        arrayList = [];
+        routePoints = [];
+        rotList = [];
+        currentRoutePointNum = -1;
+  		});
+
+      window.bridge.sigLightStatus.connect(function(name,value) {
+  			var lays = map.getOverlays();
+  			for(var i=0; i<lays.length; i++){
+  			var marker = lays[i];
+  			if(marker.getTitle() == name){
+  				var myIcon = new BMap.Icon(value==0?"nav_point.png":"circle_green.png",new BMap.Size(40,40),{offset:new BMap.Size(0,0),imageOffset:new BMap.Size(0,0)});
+  				marker.setIcon(myIcon);
+  				}
+  			}
+      });
+
+      window.bridge.rotateNavPoint.connect(function(rot) {
+      vectorMarker.setRotation(rot);
+      });
+
+    });
+
+
+
+    function initMarker(markerArr) {
+    for (var i = 0; i < markerArr.length; i++) {
+        var p = markerArr[i].point.split(",");
+        var p0 = p[0];
+        var p1 = p[1];
+        var rott = p[2];
+        if(i+1 == markerArr.length)
+        {
+          arrayList.push(new BMap.Point(p0,p1));
+          rotList.push(rott);
+          // alert("array.len ："+arrayList.length);
+        }
+        var marker = addMarker(new window.BMap.Point(p0,p1),markerArr[i],i,rott);
+        addInfoWindow(marker,markerArr[i]);
+    }
+    }
+    function addMarker(point,poi,index,rott) {
+        var myIcon = new BMap.Icon(poi.value==0?"nav_point.png":"circle_green.PNG",new BMap.Size(40,40),{offset:new BMap.Size(0,0),imageOffset:new BMap.Size(0,0)});
+        var marker = new BMap.Marker(point,{icon:myIcon});
+        //marker.setLabel(label);
+		    marker.setTitle(poi.name);
+        map.addOverlay(marker);
+        // for getRoute
+        marker.setRotation(rott);
+        return marker;
+    }
+    function addInfoWindow(marker,poi){
+        var title = '<div style="color:#CE5521;">' + poi.description + '</div>';
+        var html = [];
+	      var p = poi.point.split(",");
+        var p0 = p[0]-0.0125;
+        var p1 = p[1]-0.0062;
+        html.push('<table>');
+        html.push('<tr style="vertical-align:top;line-height:25px;font-size:12px;"><td style="white-space:nowrap;word-break:keep-all;">Name</td><td>' + poi.name + '</td></tr>');
+        html.push('<tr style="vertical-align:top;line-height:25px;font-size:12px;"><td style="white-space:nowrap;word-break:keep-all;">Description</td><td>' + poi.description + '</td></tr>');
+        html.push('<tr style="vertical-align:top;line-height:25px;font-size:12px;"><td style="white-space:nowrap;word-break:keep-all;">Point</td><td>' + p0 + "," + p1 + '</td></tr>');
+        html.push('</tr></table>');
+        var infoWindow = new BMap.InfoWindow(html.join(""),{title:title,width:60});
+        var openInfoWinFun = function () {marker.openInfoWindow(infoWindow);};
+        marker.addEventListener("click",openInfoWinFun);
+		    var menuFunc = function (){
+        		var markerMenu=new BMap.ContextMenu();
+        		var onMarker = function(e,ee,marker){
+        			bridge.onLightOn(marker.getTitle());
+        		};
+        		var offMarker = function(e,ee,marker){
+        			bridge.onLightOff(marker.getTitle());
+        		};
+        		markerMenu.addItem(new BMap.MenuItem('亮灯',onMarker.bind(marker)));
+        		markerMenu.addItem(new BMap.MenuItem('关灯',offMarker.bind(marker)));
+        		marker.addContextMenu(markerMenu);
+		    };
+        marker.addEventListener("rightclick",menuFunc);
+        return openInfoWinFun;
+    }
+
+    function myFunction(lng, lat, rot) {
+        myPoint = new BMap.Point(lng, lat);
+        vectorPlane.setRotation(rot);
+        vectorPlane.setPosition(myPoint);
+        map.setCenter(myPoint);
+        var mark_ = 0;
+          // alert(routePoints.length+","+currentRoutePointNum+" : "+Math.abs(lng-routePoints[routePoints.length - currentRoutePointNum-1].lng)+","+Math.abs(lat-routePoints[routePoints.length - currentRoutePointNum-1].lat))
+          for(var j = 0; j<arrayList.length; j++)
+          {
+
+            if(Math.abs(lng - arrayList[j].lng)<0.0005 && Math.abs(lat - arrayList[j].lat)<0.0005)
+            {
+              mark_ = 1;
+              window.bridge.jsSendTargetPoint(j + "," + rotList[j] + "," + arrayList[j].lng + "," + arrayList[j].lat + "," + arrayList.length);
+              // alert("currentRoutePointNum++"+currentRoutePointNum);
+            }
+            // window.bridge.jsSendTargetPoint(currentRoutePointNum + "," + routePoints[currentRoutePointNum].lng + "," + routePoints[currentRoutePointNum].lat);
+          }
+          if(mark_ ==0 )
+            window.bridge.jsSendTargetPoint(-1 + "," + rot + "," + 0 + "," + 0 + "," + arrayList.length);
+
+
+
+    }
+
+    function addMarker_1(point, num){
+        var myIcon = new BMap.Icon("big_green_circle.png",new BMap.Size(64,64),{offset:new BMap.Size(0,0),imageOffset:new BMap.Size(0,0)});
+    	  var marker = new BMap.Marker(point,{icon:myIcon});
+    	  map.addOverlay(marker);
+        var label = new BMap.Label(num,{offset:new BMap.Size(10,-10)});
+        marker.setLabel(label);
+    	}
+    // function showPoly(pointList){
+    //     //循环显示点对象
+    //     alert("plan.num ："+pointList.length);
+    //     // for(c=0;c<pointList.length;c++){
+    //     // var marker = new BMap.Marker(pointList[c]);
+    //     // map.addOverlay(marker);
+    //     // //将途经点按顺序添加到地图上
+    //     // var label = new BMap.Label(c+1,{offset:new BMap.Size(20,-10)});
+    //     // marker.setLabel(label);
+    //     // }
+    //
+    //    var  group = Math.floor( pointList.length /1 ) ;
+    //    // var mode = pointList.length %11 ;
+    //
+    //    var walking = new BMap.WalkingRoute( map, {onSearchComplete: function(results){
+    //           if (walking.getStatus() == BMAP_STATUS_SUCCESS){
+    //                  var plan = walking.getResults().getPlan(0);
+    //                  var  num = plan.getNumRoutes();
+    //                  //
+    //                  for(var j =0;j<num ;j++){
+    //
+    //                   var routePoints_= plan.getRoute(j).getPath();    //通过驾车实例，获得一系列点的数组
+    //                   // alert(routePoints_.length)
+    //                   for(var k = 2; k < routePoints_.length; k++){
+    //                     // if(k%10 == 0)
+    //                     //   alert( routePoints[k].lng+","+ routePoints[k].lat);
+    //                     var routePoint = routePoints_[k]
+    //                     if(k != routePoints_.length-1)
+    //                      addMarker_1(routePoint,k-2 + routePoints.length);
+    //                   }
+    //                   routePoints = routePoints.concat(routePoints_.slice(2,routePoints_.length))
+    //                   //var polyline = new BMap.Polyline(routePoints_);
+    //                   //map.addOverlay(polyline);
+    //                  }
+    //           }
+    //     }});
+    //
+    //
+    //     for(var i =0;i<group-1;i++){
+    //        var waypoints = pointList.slice(i+1,i+2);
+    //        //注意这里的终点如果是11的倍数的时候，数组可是取不到最后一位的，所以要注意终点-1喔。感谢song141的提醒，怪我太粗心大意了~
+    //        walking.search(pointList[i], pointList[i+1],{waypoints:waypoints});//waypoints表示途经点
+    //
+		// 		// if(mode != 0){
+    //     //
+		// 		// 	if(group >0){
+    //     //     var waypoints = pointList.slice(group*11,pointList.length-1);//多出的一段单独进行search
+		// 		// 		walking.search(pointList[group*11-1],pointList[pointList.length-1],{waypoints:waypoints});
+		// 		// 	}
+		// 		// 	else {
+    //     //     var waypoints = pointList.slice(1,pointList.length-1);//多出的一段单独进行search
+		// 		// 		walking.search(pointList[group*11],pointList[pointList.length-1],{waypoints:waypoints});
+		// 		// 	}
+		// 		// }
+    //
+    //
+    //     }
+    // }
+    //
+    // // 定义按钮
+    // // 定义一个控件类,即function
+    // function getRoute(){
+    //   // 默认停靠位置和偏移量
+    //   this.defaultAnchor = BMAP_ANCHOR_BOTTOM_RIGHT;
+    //   this.defaultOffset = new BMap.Size(10, 10); // 距离左上角位置
+    // }
+    //
+    // // 通过JavaScript的prototype属性继承于BMap.Control
+    // getRoute.prototype = new BMap.Control();
+    //
+    // // 自定义控件必须实现自己的initialize方法,并且将控件的DOM元素返回
+    // // 在本方法中创建个div元素作为控件的容器,并将其添加到地图容器中
+    // getRoute.prototype.initialize = function(map){
+    //   // 创建一个DOM元素
+    //   var div = document.createElement("div");
+    //   // 添加文字说明
+    //   div.appendChild(document.createTextNode("规划路径"));
+    //   // 设置样式
+    //   div.style.cursor = "pointer";
+    //   div.style.border = "4px solid gray";
+    //   div.style.backgroundColor = "white";
+    //
+    //   // 绑定事件
+    //   div.onclick = function(e){
+    //     // 动作
+		// 		//arrayList.push(p1);arrayList.push(p2);arrayList.push(p3);
+		// 		//显示轨迹
+    //     // routePoints.push(myPoint);
+    //     // routePoints = routePoints.concat(arrayList);
+    //     arrayList.unshift(myPoint);
+		// 		showPoly(arrayList);
+    //     currentRoutePointNum++;
+    //   }
+    //   // 添加DOM元素到地图中
+    //   map.getContainer().appendChild(div);
+    //   // 将DOM元素返回
+    //   return div;
+    // }
+    // // 创建控件
+    // var myRouteButton = new getRoute();
+    // // 添加到地图当中
+    // map.addControl(myRouteButton);
+
+
+    setTimeout(function(){vectorMarker.hide();}, 2000);
+</script>
